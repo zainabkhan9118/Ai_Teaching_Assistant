@@ -1,0 +1,7 @@
+# filepath: c:\Users\CUI\OneDrive\Desktop\ai_ta_streamlit\requirements.txt
+streamlit
+openai
+llama-index
+PyMuPDF
+tenacity
+requests
