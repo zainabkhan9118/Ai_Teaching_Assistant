@@ -1,7 +1,9 @@
 # filepath: c:\Users\CUI\OneDrive\Desktop\ai_ta_streamlit\requirements.txt
-streamlit
-openai
-llama-index
-PyMuPDF
-tenacity
-requests
+streamlit>=1.22.0
+openai>=0.27.0
+llama-index>=0.9.0  # Using LlamaIndex Core
+pymupdf>=1.23.0  # For better PDF extraction
+python-docx>=0.8.11  # For DOCX support  
+tenacity>=8.2.0
+requests>=2.31.0
+torch>=2.0.0  # Needed for some embedding models
