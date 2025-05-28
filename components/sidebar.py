@@ -23,7 +23,7 @@ def render_sidebar(t):
         current_lang = st.session_state.get("language", "fr")
         
         language = st.selectbox(
-            "Langage / Language",
+            "Language",
             options=[("Français", "fr"), ("English", "en")],
             format_func=lambda x: x[0],
             index=0 if current_lang == "fr" else 1,
@@ -42,21 +42,17 @@ def render_sidebar(t):
             if os.path.exists("materials"):
                 shutil.rmtree("materials")
             st.session_state.processed_files = False
+            st.session_state.uploaded_files = []  # Clear uploaded files from session state
+            st.session_state.query_engine = None  # Clear query engine
+            st.session_state.show_questions_tab = False  # Hide questions tab
             st.success("Index and documents cleared. Please re-upload your documents." if language[1] == "en" else "Index et documents effacés. Veuillez re-télécharger vos documents.")
             time.sleep(2)
             st.rerun()
         
-        # Get OpenAI API key
-        openai_api_key = st.text_input(
-            t("api_key"),
-            value="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",
-            type="password",
-            help="Get your API key at https://platform.openai.com/account/api-keys" if language[1] == "en" else "Obtenez votre clé API sur https://platform.openai.com/account/api-keys"
-        )
-        
-        if openai_api_key:
-            os.environ["OPENAI_API_KEY"] = openai_api_key
-            openai.api_key = openai_api_key
+        # Get OpenAI API key (hardcoded, not shown in sidebar)
+        openai_api_key = "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"
+        os.environ["OPENAI_API_KEY"] = openai_api_key
+        openai.api_key = openai_api_key
         
         st.divider()
         st.markdown("### " + ("Subject" if language[1] == "en" else "Matière"))
