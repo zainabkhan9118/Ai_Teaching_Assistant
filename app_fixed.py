@@ -33,6 +33,114 @@ Upload course materials to create an AI teaching assistant that can:
 - Extract key concepts from lectures
 """)
 
+# Subject-specific configurations
+SUBJECT_CONFIGS = {
+    "economics": {
+        "description": "Economic theories, models, and real-world applications",
+        "guidance": """
+        - Always reference economic principles like supply/demand, elasticity, opportunity cost
+        - Use appropriate graphs/charts when explaining concepts
+        - Differentiate between micro and macroeconomics concepts
+        - Reference key economists and their theories when relevant
+        - For calculations, show formulas and step-by-step working
+        """,
+        "examples": """
+        **Example Q:** Explain price elasticity of demand?
+        **Example A:** 
+        **Price Elasticity of Demand** measures how quantity demanded responds to price changes...
+        
+        Formula: 
+        ```
+        PED = (%Δ Quantity Demanded) / (%Δ Price)
+        ```
+        
+        Types:
+        - Elastic (PED > 1)
+        - Inelastic (PED < 1)
+        - Unitary elastic (PED = 1)
+        
+        **Real-world example:** Gasoline often has inelastic demand...
+        """,
+        "question_types": {
+            "Multiple Choice": "Include questions about economic models and graph interpretations",
+            "True/False": "Focus on economic principles and common misconceptions",
+            "Calculation": "Include problems with economic formulas and step-by-step solutions"
+        }
+    },
+    "marketing": {
+        "description": "Marketing strategies, consumer behavior, and campaign analysis",
+        "guidance": """
+        - Reference the 4Ps framework (Product, Price, Place, Promotion)
+        - Use modern marketing examples when possible
+        - Differentiate between B2B and B2C marketing
+        - Include digital marketing considerations
+        - Reference case studies where appropriate
+        """,
+        "examples": """
+        **Example Q:** What makes an effective marketing campaign?
+        **Example A:** Key elements include:
+        1. **Clear target audience** definition
+        2. **Value proposition** articulation
+        3. Multi-channel **integration**
+        4. Measurable **KPIs**
+        
+        **Example:** Apple's 'Think Different' campaign succeeded because...
+        """,
+        "question_types": {
+            "Multiple Choice": "Include questions about marketing frameworks and case studies",
+            "True/False": "Focus on marketing principles and consumer behavior",
+            "Case Analysis": "Provide mini case studies for analysis"
+        }
+    },
+    "finance": {
+        "description": "Financial analysis, valuation, and investment strategies",
+        "guidance": """
+        - Use proper financial terminology and formulas
+        - Show calculations step-by-step
+        - Differentiate between corporate finance and investments
+        - Reference key financial ratios and metrics
+        - Use realistic numerical examples
+        """,
+        "examples": """
+        **Example Q:** How do you calculate NPV?
+        **Example A:**
+        **Net Present Value (NPV)** calculates the present value of future cash flows:
+        
+        Formula:
+        ```
+        NPV = Σ [CFₜ / (1+r)ᵗ] - Initial Investment
+        ```
+        
+        Where:
+        - CFₜ = Cash flow at time t
+        - r = Discount rate
+        - t = Time period
+        
+        **Example:** For a project with $100 initial investment...
+        """,
+        "question_types": {
+            "Multiple Choice": "Include questions about financial formulas and ratio analysis",
+            "Calculation": "Provide financial problems requiring step-by-step solutions",
+            "Scenario Analysis": "Present investment scenarios for evaluation"
+        }
+    },
+    "general": {
+        "description": "General academic subjects and course materials",
+        "guidance": """
+        - Provide clear, structured explanations
+        - Use academic conventions appropriate for the material
+        - Organize information logically
+        - Highlight key terms and concepts
+        """,
+        "examples": "",
+        "question_types": {
+            "Multiple Choice": "Standard multiple choice questions",
+            "True/False": "True/false statements",
+            "Short Answer": "Brief open-ended questions"
+        }
+    }
+}
+
 # Create storage directory
 PERSIST_DIR = "./storage"
 Path(PERSIST_DIR).mkdir(exist_ok=True)
@@ -50,10 +158,13 @@ if 'last_embed_model' not in st.session_state:
             with open(metadata_path, "r") as f:
                 metadata = json.load(f)
             st.session_state.last_embed_model = metadata.get("embed_model", "text-embedding-3-small")
+            st.session_state.last_subject = metadata.get("subject", "general")
         except:
             st.session_state.last_embed_model = "text-embedding-3-small"
+            st.session_state.last_subject = "general"
     else:
         st.session_state.last_embed_model = "text-embedding-3-small"
+        st.session_state.last_subject = "general"
 
 # Sidebar for settings
 with st.sidebar:
@@ -71,6 +182,7 @@ with st.sidebar:
     # Get OpenAI API key
     openai_api_key = st.text_input(
         "🔑 OpenAI API Key",
+        value="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",
         type="password",
         help="Get your API key from https://platform.openai.com/account/api-keys"
     )
@@ -78,6 +190,16 @@ with st.sidebar:
     if openai_api_key:
         os.environ["OPENAI_API_KEY"] = openai_api_key
         openai.api_key = openai_api_key
+    
+    st.divider()
+    st.markdown("### Teaching Subject")
+    subject = st.selectbox(
+        "Select Subject Specialization",
+        list(SUBJECT_CONFIGS.keys()),
+        index=list(SUBJECT_CONFIGS.keys()).index(st.session_state.get('last_subject', 'general')),
+        help="Specializes the AI for specific academic disciplines"
+    )
+    st.caption(SUBJECT_CONFIGS[subject]['description'])
     
     st.divider()
     st.markdown("### Advanced Options")
@@ -106,6 +228,45 @@ uploaded_files = st.file_uploader(
     accept_multiple_files=True,
     help="Upload all relevant course materials at once"
 )
+
+def create_subject_specific_engine(index, subject, llm):
+    config = SUBJECT_CONFIGS.get(subject.lower(), SUBJECT_CONFIGS['general'])
+    
+    # Build system prompt
+    system_prompt = f"""
+You are an expert {subject} teaching assistant helping with academic course materials. 
+Your goal is to provide accurate, concise, and well-structured responses STRICTLY based on the provided materials.
+
+SPECIALIZATION: {subject.upper()}
+{config['guidance']}
+
+RESPONSE RULES:
+1. For concepts: Provide definitions, examples, and key characteristics
+2. For procedures: List steps in numbered format
+3. For comparisons: Use tables or bullet points
+4. For calculations: Show formulas and step-by-step working
+5. NEVER invent information not present in the documents
+6. If unsure: State "This isn't covered in the provided materials"
+
+FORMATTING:
+- Use Markdown for clear formatting
+- Highlight key terms in bold
+- Use bullet points for lists
+- Use tables for comparisons
+- Include {subject}-specific examples
+
+EXAMPLES:
+{config['examples']}
+"""
+    
+    return index.as_query_engine(
+        similarity_top_k=6,
+        response_mode="tree_summarize",
+        streaming=False,
+        verbose=True,
+        llm=llm,
+        system_prompt=system_prompt
+    )
 
 # Process files when uploaded
 if uploaded_files and not st.session_state.processed_files:
@@ -136,14 +297,16 @@ if uploaded_files and not st.session_state.processed_files:
             Settings.embed_model = embed_model
             Settings.chunk_size = chunk_size
             
-            # Check if embedding model has changed
-            model_changed = st.session_state.last_embed_model != embed_model_name
+            # Check if embedding model or subject has changed
+            model_changed = (st.session_state.last_embed_model != embed_model_name or 
+                           st.session_state.last_subject != subject)
             if model_changed:
-                st.warning("Embedding model changed! Rebuilding index...")
+                st.warning("Configuration changed! Rebuilding index...")
                 if os.path.exists(PERSIST_DIR):
                     shutil.rmtree(PERSIST_DIR)
                     os.makedirs(PERSIST_DIR)
                 st.session_state.last_embed_model = embed_model_name
+                st.session_state.last_subject = subject
             
             # Load or create index
             if os.path.exists(PERSIST_DIR) and os.listdir(PERSIST_DIR) and not model_changed:
@@ -188,7 +351,8 @@ if uploaded_files and not st.session_state.processed_files:
                             st.error(f"PDF extraction failed for {file_name}: {str(e)}")
                         
                         return []
-                      # Configure file extractors
+                    
+                    # Configure file extractors
                     file_extractor = {
                         ".pdf": load_pdf_with_fallback,
                         ".docx": lambda f: [Document(text="\n".join([p.text for p in DocxDocument(f).paragraphs]), 
@@ -208,7 +372,8 @@ if uploaded_files and not st.session_state.processed_files:
                     st.error(f"Required libraries not installed: {str(e)}")
                     st.info("Run: pip install pymupdf pdfminer.six python-docx")
                     st.stop()
-                  # Validate documents
+                
+                # Validate documents
                 valid_docs = []
                 for doc in documents:
                     clean_text = ' '.join(doc.text.strip().split())
@@ -252,36 +417,21 @@ if uploaded_files and not st.session_state.processed_files:
                     "embed_model": embed_model_name,
                     "llm_model": llm_model_name,
                     "chunk_size": chunk_size,
+                    "subject": subject,
                     "file_count": len(valid_docs),
                     "timestamp": time.strftime("%Y-%m-%d %H:%M:%S")
                 }
                 with open(os.path.join(PERSIST_DIR, "metadata.json"), "w") as f:
                     json.dump(metadata, f)
                 
-                st.success(f"Processed {len(valid_docs)} documents successfully!")            # Create enhanced query engine with improved settings for better accuracy
-            query_engine = index.as_query_engine(
-                similarity_top_k=6,  # Increased to get more context
-                response_mode="tree_summarize",  # Better for synthesizing information
-                streaming=False,
-                verbose=True,  # Enable verbose mode for better debugging
-                llm=llm,
-                system_prompt=(
-                    "You are an expert teaching assistant helping with academic course materials. "
-                    "Your goal is to provide accurate, concise, and well-structured responses "
-                    "STRICTLY based on the course materials provided. Follow these rules carefully:\n\n"
-                    "1. When listing important points or topics from a lecture: Organize them with clear headings and bullet points.\n"
-                    "2. For conceptual questions: Provide definitions, examples, and key characteristics directly from the materials.\n"
-                    "3. For procedural questions: List steps in numbered format.\n"
-                    "4. For comparisons: Use tables or bullet points to contrast items.\n"
-                    "5. NEVER invent information not present in the documents.\n"
-                    "6. If unsure or if information is missing: Clearly state 'This specific topic isn't covered in the provided materials.'\n\n"
-                    "When asked to list the important points from a lecture or document, extract the key topics and organize them "
-                    "in a clear, structured way with appropriate headings."
-                )
-            )
+                st.success(f"Processed {len(valid_docs)} documents successfully!")
+            
+            # Create subject-specific query engine
+            query_engine = create_subject_specific_engine(index, subject, llm)
             
             st.session_state.query_engine = query_engine
             st.session_state.processed_files = True
+            st.session_state.current_subject = subject
             
         except Exception as e:
             st.error(f"Error processing files: {str(e)}")
@@ -292,10 +442,10 @@ if st.session_state.get('processed_files', False):
     tab1, tab2, tab3 = st.tabs(["💬 Ask Questions", "📝 Generate Practice Questions", "🔑 Key Concepts"])
     
     with tab1:
-        st.header("💬 Ask Questions About the Material")
+        st.header(f"💬 Ask {st.session_state.current_subject.capitalize()} Questions")
         user_question = st.text_area(
             "Enter your question:",
-            placeholder="e.g. Explain the concept of supply and demand with examples from the materials",
+            placeholder=f"e.g. {SUBJECT_CONFIGS[subject]['examples'].split('?')[0][8:]+'?' if SUBJECT_CONFIGS[subject]['examples'] else 'Explain a key concept from the materials...'}",
             height=100
         )
         
@@ -346,14 +496,18 @@ if st.session_state.get('processed_files', False):
         with col1:
             topic = st.text_input(
                 "Topic for questions:",
-                placeholder="e.g. Market equilibrium",
+                placeholder=f"e.g. {'Supply and demand' if subject == 'economics' else 'Marketing mix' if subject == 'marketing' else 'Financial ratios'}",
                 key="q_topic"
             )
+            
+            # Get subject-specific question types
+            q_types = list(SUBJECT_CONFIGS[subject]['question_types'].keys())
             question_type = st.selectbox(
                 "Question type",
-                ["Multiple Choice", "True/False", "Short Answer", "Essay"],
+                q_types,
                 key="q_type"
             )
+            st.caption(SUBJECT_CONFIGS[subject]['question_types'][question_type])
         
         with col2:
             difficulty = st.select_slider(
@@ -385,7 +539,7 @@ Extract comprehensive information about '{topic}' from the course materials incl
                     # Generate questions based on type
                     if question_type == "Multiple Choice":
                         prompt = f"""
-Generate {num_questions} {difficulty.lower()} multiple choice questions about '{topic}'.
+Generate {num_questions} {difficulty.lower()} multiple choice questions about '{topic}' for {subject}.
 Base questions strictly on this content: {relevant_content}
 
 Format each question EXACTLY like this:
@@ -400,13 +554,13 @@ Format each question EXACTLY like this:
 - **D)** [Option D]
 
 **Answer:** [Correct letter]
-**Explanation:** [1-2 sentence explanation]
+**Explanation:** [1-2 sentence explanation with reference to {subject} concepts]
 
 ---
 """
                     elif question_type == "True/False":
                         prompt = f"""
-Generate {num_questions} true/false questions about '{topic}'.
+Generate {num_questions} true/false questions about '{topic}' for {subject}.
 Include explanations and reference specific content.
 
 Format EXACTLY like this:
@@ -416,13 +570,32 @@ Format EXACTLY like this:
 **[Q].** [Statement]
 
 **Answer:** True/False
-**Explanation:** [Explanation with reference to materials]
+**Explanation:** [Explanation with reference to {subject} materials]
+
+---
+"""
+                    elif question_type in ["Calculation", "Case Analysis"]:
+                        prompt = f"""
+Generate {num_questions} {question_type.lower()} problems about '{topic}' for {subject}.
+Include detailed solutions and explanations.
+
+Format EXACTLY like this:
+
+### Problem [N]
+
+**[Q].** [Problem statement]
+
+**Solution:** 
+[Step-by-step solution with {subject}-specific reasoning]
+
+**Key Takeaway:**
+[Main learning point]
 
 ---
 """
                     else:  # Short Answer or Essay
                         prompt = f"""
-Generate {num_questions} {question_type.lower()} questions about '{topic}'.
+Generate {num_questions} {question_type.lower()} questions about '{topic}' for {subject}.
 Include detailed answers and references.
 
 Format EXACTLY like this:
@@ -432,7 +605,7 @@ Format EXACTLY like this:
 **[Q].** [Question]
 
 **Answer:** 
-[Detailed answer with references to materials]
+[Detailed answer with references to {subject} materials]
 
 ---
 """
@@ -455,7 +628,7 @@ Format EXACTLY like this:
                     st.download_button(
                         label="📥 Download Questions",
                         data=questions,
-                        file_name=f"{topic.replace(' ', '_')}_questions.md",
+                        file_name=f"{subject}_{topic.replace(' ', '_')}_questions.md",
                         mime="text/markdown"
                     )
                 
@@ -466,7 +639,7 @@ Format EXACTLY like this:
         st.header("🔑 Extract Key Concepts")
         concept_topic = st.text_input(
             "Enter topic (leave blank for entire document):",
-            placeholder="e.g. Macroeconomic principles",
+            placeholder=f"e.g. {'Macroeconomics' if subject == 'economics' else 'Consumer behavior' if subject == 'marketing' else 'Valuation methods'}",
             key="concept_topic"
         )
         
@@ -475,28 +648,37 @@ Format EXACTLY like this:
                 try:
                     if concept_topic:
                         prompt = f"""
-Extract the 7-10 most important concepts about '{concept_topic}' from the materials.
+Extract the 7-10 most important {subject} concepts about '{concept_topic}' from the materials.
+For each concept include:
+1. Definition
+2. Key characteristics
+3. {subject}-specific examples
+4. Practical applications
+
 Format as:
 
-### Key Concepts: [Topic]
+### Key {subject.capitalize()} Concepts: {concept_topic}
 
 1. **[Concept Name]**: [Brief definition/explanation]
-   - Example: [Relevant example]
-   - Importance: [Why it matters]
+   - **Key Features**: [List characteristics]
+   - **Example**: [Relevant example]
+   - **Application**: [How it's used in {subject}]
 
 2. **[Concept Name]**: [Brief definition/explanation]
    ...
 """
                     else:
-                        prompt = """
-Extract the 10-15 most important concepts from the entire document.
+                        prompt = f"""
+Extract the 10-15 most important {subject} concepts from the entire document.
+Organize by major topics and include {subject}-specific context.
+
 Format as:
 
-### Document Key Concepts
+### Document Key {subject.capitalize()} Concepts
 
 #### [Major Topic 1]
-1. [Concept] - [Explanation]
-2. [Concept] - [Explanation]
+1. [Concept] - [Explanation with {subject} context]
+2. [Concept] - [Explanation with {subject} context]
 
 #### [Major Topic 2]
 ...
@@ -511,7 +693,7 @@ Format as:
                     st.download_button(
                         label="📥 Download Concepts",
                         data=concepts,
-                        file_name="key_concepts.md",
+                        file_name=f"{subject}_key_concepts.md",
                         mime="text/markdown"
                     )
                 
@@ -527,4 +709,4 @@ else:
 
 # Footer
 st.markdown("---")
-st.caption("AI Teaching Assistant v2.1 | For educational purposes only")
+st.caption("AI Teaching Assistant v3.0 | Subject-Specialized | For educational purposes only")

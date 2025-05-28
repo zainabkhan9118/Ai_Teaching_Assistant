@@ -1,9 +1,12 @@
 # filepath: c:\Users\CUI\OneDrive\Desktop\ai_ta_streamlit\requirements.txt
-streamlit>=1.22.0
-openai>=0.27.0
-llama-index>=0.9.0  # Using LlamaIndex Core
-pymupdf>=1.23.0  # For better PDF extraction
-python-docx>=0.8.11  # For DOCX support  
+streamlit>=1.29.0
+llama-index-core>=0.10.0
+llama-index-llms-openai>=0.1.1
+llama-index-embeddings-openai>=0.1.1
+openai>=1.1.0
+pymupdf>=1.22.5  # For better PDF extraction
+pdfminer.six>=20221105  # Alternative PDF extraction
+python-docx>=0.8.11  # For DOCX support
+gdown>=4.6.4  # For Google Drive integration
 tenacity>=8.2.0
 requests>=2.31.0
-torch>=2.0.0  # Needed for some embedding models
