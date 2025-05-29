@@ -50,7 +50,7 @@ def render_sidebar(t):
             st.rerun()
         
         # Get OpenAI API key (hardcoded, not shown in sidebar)
-        openai_api_key = "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"
+        openai_api_key = "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"
         os.environ["OPENAI_API_KEY"] = openai_api_key
         openai.api_key = openai_api_key
         
@@ -105,7 +105,7 @@ def render_sidebar(t):
         )
         llm_model_name = st.selectbox(
             t("llm_model"),
-            ["gpt-3.5-turbo", "gpt-4", "gpt-4-turbo"],
+            ["gpt-4o-mini"],
             index=0,
             help="Language model for generating responses" if language[1] == "en" else "Modèle de langage pour générer des réponses"
         )
