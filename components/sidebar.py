@@ -50,7 +50,7 @@ def render_sidebar(t):
             st.rerun()
         
         # Get OpenAI API key (hardcoded, not shown in sidebar)
-        openai_api_key = "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"
+        openai_api_key = "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"
         os.environ["OPENAI_API_KEY"] = openai_api_key
         openai.api_key = openai_api_key
         
